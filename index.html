@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Infinite Fall</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 16px; background: #1a1a1a; color: #e0e0e0; }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { color: #e0e0e0; }
+    
+    .game-area {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .game-screen-container {
+      width: 60%;
+      flex-shrink: 0;
+    }
+    .game-screen { 
+      position: relative;
+      width: 100%; 
+      height: 300px; 
+      border: 1px solid #333; 
+      border-radius: 10px 10px 0 0; 
+      overflow: hidden;
+    }
+    .game-screen canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .enemy-sprite {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      gap: 8px;
+    }
+    .enemy-sprite img {
+      max-width: 120px;
+      max-height: 120px;
+      object-fit: contain;
+      filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.8));
+    }
+    .enemy-name {
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      white-space: nowrap;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+    .enemy-sprite.damaged {
+      animation: damage 0.3s ease-out;
+    }
+    @keyframes damage {
+      0%, 100% { opacity: 1; transform: translate(-50%, -50%); }
+      25% { opacity: 0.3; transform: translate(-48%, -50%); }
+      50% { opacity: 1; transform: translate(-52%, -50%); }
+      75% { opacity: 0.3; transform: translate(-48%, -50%); }
+    }
+    
+    .game-controls {
+      border: 1px solid #333;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      padding: 10px;
+      background: #2a2a2a;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .game-controls button {
+      flex: 1;
+      min-width: 80px;
+    }
+    
+    .status-panel {
+      flex: 1;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 12px;
+      background: #2a2a2a;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .status-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .status-label {
+      font-size: 11px;
+      opacity: 0.7;
+      text-transform: uppercase;
+    }
+    .status-value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .status-bar {
+      width: 100%;
+      height: 8px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .status-bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .hp-bar { background: #ff4444; }
+    .hunger-bar { background: #44ff44; }
+    .xp-bar { background: #4488ff; }
+    
+    .panel { border: 1px solid #333; border-radius: 10px; padding: 12px; margin: 10px 0; background: #2a2a2a; color: #e0e0e0; }
+    .info-text { font-size: 11px; opacity: 0.7; line-height: 1.4; }
+    button { padding: 8px 10px; border-radius: 10px; border: 1px solid #555; background: #3a3a3a; color: #e0e0e0; cursor: pointer; font-size: 13px; user-select: none; }
+    button:hover { background: #4a4a4a; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .log { white-space: pre-wrap; line-height: 1.35; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; max-height: 300px; overflow-y: auto; }
+    .small { font-size: 12px; opacity: .8; }
+    .inv { display: grid; grid-template-columns: 1fr; gap: 4px; }
+    .inv-header { font-size: 11px; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .item { 
+      display: flex; 
+      justify-content: space-between; 
+      gap: 6px; 
+      align-items: center; 
+      border: 1px dashed #555; 
+      padding: 4px 6px; 
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .item b { font-weight: 700; font-size: 13px; }
+    .item-buttons {
+      display: flex;
+      gap: 4px;
+    }
+    .item-buttons button {
+      padding: 6px 8px;
+      font-size: 11px;
+      min-width: 50px;
+touch-action: manipulation;
+    }
+    .item-food { color: #ff8800; }
+    .item-potion { color: #22aa22; }
+    .item-weapon { color: #ff4444; }
+    .item-armor { color: #4488ff; }
+    .inv-caption { font-size: 11px; opacity: 0.7; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Infinite Fall <span class="small">ベスト：<b id="bestTop">0</b> m</span></h1>
+  
+  <div class="panel">
+    <div class="info-text">
+      🎮 自動で2mずつ落下 | 💀 満腹度がゼロで死亡 | ⚔️ 戦闘中のアイテム使用は敵の攻撃を受ける
+    </div>
+  </div>
+
+  <div class="game-area">
+    <div class="game-screen-container">
+      <div class="game-screen">
+        <canvas id="bgCanvas"></canvas>
+        <div id="enemySprite" class="enemy-sprite" style="display:none;"></div>
+      </div>
+      <div class="game-controls">
+        <button id="btnStart">スタート</button>
+        <button id="btnAttack">攻撃する</button>
+        <button id="btnRestart">最初から</button>
+        <button id="btnRun">逃げる</button>
+      </div>
+    </div>
+    
+    <div class="status-panel">
+      <div class="status-row">
+        <div class="status-label">深さ</div>
+        <div class="status-value"><span id="depth">0</span> m</div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">状態</div>
+        <div class="status-value" style="font-size: 14px;" id="state">待機中</div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">レベル / EXP</div>
+        <div class="status-value">Lv <span id="lv">1</span></div>
+        <div class="small"><span id="xp">0</span>/<span id="xpneed">10</span></div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">HP</div>
+        <div class="status-value"><span id="hp">50</span>/<span id="hpmax">50</span></div>
+        <div class="status-bar">
+          <div class="status-bar-fill hp-bar" id="hpBar" style="width: 100%"></div>
+        </div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">満腹度</div>
+        <div class="status-value"><span id="hung">150</span>/150</div>
+        <div class="status-bar">
+          <div class="status-bar-fill hunger-bar" id="hungerBar" style="width: 100%"></div>
+        </div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">武器</div>
+        <div class="small"><b id="wep">素手</b> (ATK +<span id="wepAtk">0</span>)</div>
+      </div>
+      
+      <div class="status-row">
+        <div class="status-label">防具</div>
+        <div class="small"><b id="arm">布</b> (DEF +<span id="armDef">0</span>)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="inv-header">Inventory</div>
+    <div id="inv" class="inv"></div>
+    <div class="inv-caption">※ 最大6個まで。アイテムを捨てるとHP・満腹度が少し回復。</div>
+  </div>
+
+  <div class="panel">
+    <div class="inv-header">Log</div>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ====== Config ======
+  const INV_CAP = 6;
+  const ENCOUNTER_RATE = 0.02;
+  const EQUIPMENT_LOOT_RATE = 0.012;
+  const BATTLE_LOOT_RATE = 0.65;
+  const HUNGER_DEC_FALL = 0.15;
+  const RUN_BASE = 0.45;
+  const RUN_PENALTY_DEPTH = 0.0006;
+  const AUTO_FALL_INTERVAL = 150;
+  const FALL_DISTANCE = 2;
+
+  // Enemy images mapping (local files)
+  const ENEMY_IMAGES = {
+    "スライム": "./slime.png",
+    "コウモリ": "./bat.png",
+    "骸骨": "./born.png",
+    "ゴーレム": "./golem.png",
+    "影": "./kage.png",
+    "深海の獣": "./shinkai.png",
+    "虚無の口": "./kuchi.png",
+    "闇の騎士": "./kishi.png",
+    "古代竜": "./ryuu.png",
+    "魔導師": "./majic.png",
+    "呪われた人形": "./noroi.png",
+    "混沌の使者": "./chaos.png",
+    "奈落の番人": "./naraku.png",
+    "忘却の亡者": "./boukyaku.png",
+    "絶望の化身": "./zetsubo.png",
+    "終焉の先触れ": "./syuen.png",
+    "深淵の主": "./sinen.png"
+  };
+
+  // ====== State ======
+  let g = {};
+  let autoFallTimer = null;
+  let fallingActive = false;
+
+  function freshGame() {
+    stopAutoFall();
+    fallingActive = false;
+    g = {
+      depth: 0,
+      best: loadBest(),
+      state: "waiting",
+      lv: 1,
+      xp: 0,
+      xpNeed: 10,
+      hpMax: 50,
+      hp: 50,
+      hungerMax: 150,
+      hunger: 150,
+      weapon: { name: "素手", atk: 0 },
+      armor:  { name: "布", def: 0 },
+      invCap: INV_CAP,
+      inv: [],
+      enemy: null,
+      pendingLoot: null,
+    };
+    logln("スタートボタンを押して落下を開始。");
+    render();
+    setButtons();
+  }
+
+  function loadBest() {
+    const v = Number(localStorage.getItem("fall_best_depth") || 0);
+    return Number.isFinite(v) ? v : 0;
+  }
+  function saveBest(v) {
+    localStorage.setItem("fall_best_depth", String(v));
+  }
+
+  // ====== Utility ======
+  function rint(a, b) {
+    return Math.floor(Math.random() * (b - a + 1)) + a;
+  }
+  function chance(p) { return Math.random() < p; }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+// ===== Canvas & Particle Animation =====
+const canvas = document.getElementById("bgCanvas");
+const ctx = canvas.getContext("2d");
+
+let particles = [];
+let canvasInitialized = false;
+
+function initCanvas() {
+  const rect = canvas.getBoundingClientRect();
+
+  // ★論理座標＝見た目座標
+  canvas.width  = rect.width;
+  canvas.height = rect.height;
+
+  particles = [];
+  for (let i = 0; i < 180; i++) {
+    particles.push(makeParticle());
+  }
+
+  canvasInitialized = true;
+}
+
+function makeParticle() {
+  return {
+    x: Math.random() * canvas.width,
+    y: canvas.height + Math.random() * canvas.height,
+    speed: 2.5 + Math.random() * 4.0,   // ← 速い
+    size: 0.5 + Math.random() * 1.0,    // ← 細かい
+    alpha: 0.12 + Math.random() * 0.28  // ← 薄い
+  };
+}
+
+function updateBackground() {
+  if (!canvasInitialized) initCanvas();
+
+  // 背景（薄く塗りつぶし）
+  ctx.fillStyle = "rgba(10,18,32,0.35)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // パーティクル（下 → 上）
+  for (const p of particles) {
+    ctx.fillStyle = `rgba(180,200,230,${p.alpha})`;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+
+    if (fallingActive) {
+  p.y -= p.speed;
+}
+
+    if (p.y < -10) {
+      p.y = canvas.height + 10;
+      p.x = Math.random() * canvas.width;
+    }
+  }
+
+  requestAnimationFrame(updateBackground);
+}
+
+// リサイズ時に再初期化
+window.addEventListener("resize", () => {
+  canvasInitialized = false;
+});
+
+// 起動
+updateBackground();
+
+
+
+
+
+
+  // ====== Combat / Scaling ======
+  function depthTier(depth) {
+    if (depth >= 14000) return 16;
+    if (depth >= 13000) return 15;
+    if (depth >= 12000) return 14;
+    if (depth >= 11000) return 13;
+    return Math.floor(depth / 800);
+  }
+
+  function makeEnemy(depth) {
+    if (depth >= 15000) {
+      return {
+        name: "深淵の主",
+        hp: 200,
+        hpMax: 200,
+        atk: 30,
+        def: 15,
+        tier: 99,
+        isBoss: true
+      };
+    }
+    
+    const tier = depthTier(depth);
+    const names = [
+      "スライム", "コウモリ", "骸骨", "ゴーレム", "影", "深海の獣", "虚無の口",
+      "闇の騎士", "古代竜", "魔導師", "呪われた人形", "混沌の使者", "奈落の番人",
+      "忘却の亡者", "絶望の化身", "終焉の先触れ"
+    ];
+    const name = names[clamp(tier, 0, names.length - 1)];
+
+    const base = 9 + tier * 3;
+    const hp = base + rint(0, 5 + tier * 2);
+    const atk = 5 + tier + rint(0, 2 + tier);
+    const def = Math.floor(tier / 2) + rint(0, 1);
+
+    return { name, hp, hpMax: hp, atk, def, tier };
+  }
+
+  function showEnemy(enemy) {
+    const sprite = document.getElementById('enemySprite');
+    sprite.innerHTML = '';
+    
+    const imgUrl = ENEMY_IMAGES[enemy.name];
+    if (imgUrl) {
+      const img = document.createElement('img');
+      img.src = imgUrl;
+      img.alt = enemy.name;
+      img.crossOrigin = "anonymous"; // Add CORS support
+      
+      // Add error handling
+      img.onerror = () => {
+        console.error(`Failed to load image for ${enemy.name}: ${imgUrl}`);
+        // Show text fallback
+        sprite.innerHTML = '';
+        const fallback = document.createElement('div');
+        fallback.style.fontSize = '48px';
+        fallback.style.fontWeight = 'bold';
+        fallback.style.color = '#fff';
+        fallback.textContent = enemy.name;
+        sprite.appendChild(fallback);
+        
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'enemy-name';
+        nameLabel.textContent = `${enemy.name} (HP ${enemy.hp}/${enemy.hpMax})`;
+        sprite.appendChild(nameLabel);
+      };
+      
+      img.onload = () => {
+        console.log(`✓ Image loaded: ${enemy.name}`);
+      };
+      
+      sprite.appendChild(img);
+      
+      const nameLabel = document.createElement('div');
+      nameLabel.className = 'enemy-name';
+      nameLabel.textContent = `${enemy.name} (HP ${enemy.hp}/${enemy.hpMax})`;
+      sprite.appendChild(nameLabel);
+    } else {
+      console.warn(`No image URL for ${enemy.name}`);
+      const fallback = document.createElement('div');
+      fallback.style.fontSize = '48px';
+      fallback.style.fontWeight = 'bold';
+      fallback.style.color = '#fff';
+      fallback.textContent = enemy.name;
+      sprite.appendChild(fallback);
+      
+      const nameLabel = document.createElement('div');
+      nameLabel.className = 'enemy-name';
+      nameLabel.textContent = `${enemy.name} (HP ${enemy.hp}/${enemy.hpMax})`;
+      sprite.appendChild(nameLabel);
+    }
+    
+    sprite.style.display = 'flex';
+  }
+
+  function hideEnemy() {
+    document.getElementById('enemySprite').style.display = 'none';
+  }
+
+  function damageEnemy() {
+    const sprite = document.getElementById('enemySprite');
+    sprite.classList.add('damaged');
+    setTimeout(() => sprite.classList.remove('damaged'), 300);
+  }
+
+  function playerAtk() {
+    return 2 + g.lv + g.weapon.atk;
+  }
+  function playerDef() {
+    return 1 + Math.floor(g.lv / 2) + g.armor.def;
+  }
+
+  function dealDamage(rawAtk, rawDef) {
+    const roll = rint(-1, 2);
+    const dmg = Math.max(1, (rawAtk + roll) - rawDef);
+    return dmg;
+  }
+
+  function gainXP(amount) {
+    g.xp += amount;
+    while (g.xp >= g.xpNeed) {
+      g.xp -= g.xpNeed;
+      g.lv += 1;
+      g.xpNeed = Math.floor(g.xpNeed * 1.22 + 3);
+      const hpGain = rint(2, 5);
+      g.hpMax += hpGain;
+      const oldHungerMax = g.hungerMax;
+      g.hungerMax += 2;
+      if (g.hunger > oldHungerMax) {
+        g.hunger = oldHungerMax;
+      }
+      logln(`レベルアップ！ Lv${g.lv} になった。最大HP +${hpGain}。`);
+    }
+  }
+
+  // ====== Loot ======
+  function equipmentLootRoll(depth) {
+    const tier = depthTier(depth);
+    if (chance(0.5)) {
+      return makeWeapon(tier);
+    } else {
+      return makeArmor(tier);
+    }
+  }
+  
+  function consumableLootRoll(depth) {
+    const tier = depthTier(depth);
+    if (chance(0.7)) {
+      return makeFood(tier);
+    } else {
+      return makePotion(tier);
+    }
+  }
+
+  function makeWeapon(tier) {
+    const names = ["短剣", "槍", "長剣", "ハンマー", "魔導杖", "黒刃", "虚空の針", "星喰らいの剣", "絶対零度"];
+    const name = names[clamp(tier, 0, names.length - 1)];
+    const actualTier = chance(0.3) ? Math.max(0, tier - rint(1, 2)) : tier;
+    const atk = 1 + actualTier + rint(0, 2 + Math.floor(actualTier/2));
+    return { kind: "weapon", name, atk };
+  }
+  function makeArmor(tier) {
+    const names = ["革鎧", "鎖帷子", "鉄鎧", "重装甲", "結界衣", "影衣", "虚無装甲", "時空の盾", "不滅の聖衣"];
+    const name = names[clamp(tier, 0, names.length - 1)];
+    const actualTier = chance(0.3) ? Math.max(0, tier - rint(1, 2)) : tier;
+    const def = 1 + Math.floor(actualTier/2) + rint(0, 2);
+    return { kind: "armor", name, def };
+  }
+  function makeFood(tier) {
+    const names = ["乾パン", "干し肉", "スープ", "薬草粥", "携帯食", "星のゼリー", "深淵パン"];
+    const name = names[clamp(tier, 0, names.length - 1)];
+    const hunger = 10 + tier * 1.5 + rint(0, 5);
+    return { kind: "food", name, hunger };
+  }
+  
+  function makePotion(tier) {
+    const names = ["薬草", "治癒薬", "エリクサー", "万能薬", "秘薬", "神秘の水", "不死の霊薬"];
+    const name = names[clamp(tier, 0, names.length - 1)];
+    const heal = 10 + tier * 1.5 + rint(0, 3);
+    const hunger = 3 + rint(0, 2);
+    return { kind: "potion", name, heal, hunger };
+  }
+
+  function addToInv(item) {
+    if (g.inv.length < g.invCap) {
+      g.inv.push(item);
+      logln(`拾った：${itemLabel(item)}`);
+      return true;
+    }
+    return false;
+  }
+
+  function itemLabel(it) {
+    if (it.kind === "weapon") return `${it.name}（武器 ATK+${it.atk}）`;
+    if (it.kind === "armor")  return `${it.name}（防具 DEF+${it.def}）`;
+    if (it.kind === "potion") return `${it.name}（薬 HP+${it.heal} 満腹+${it.hunger}）`;
+    return `${it.name}（食料 満腹+${it.hunger}）`;
+  }
+
+  // ====== Turn / Death ======
+  function spendTurn(hungerCost) {
+    g.hunger -= hungerCost;
+    if (g.hunger <= 0) {
+      g.hunger = 0;
+      die(`空腹で倒れた。`);
+      return false;
+    }
+    return true;
+  }
+
+  function die(msg) {
+    g.state = "dead";
+    g.inv = [];
+    stopAutoFall();
+    hideEnemy();
+    logln(msg);
+    logln(`記録：${g.depth} m`);
+    if (g.depth > g.best) {
+      g.best = g.depth;
+      saveBest(g.best);
+      logln(`新記録！ ベスト更新：${g.best} m`);
+    }
+    setButtons();
+    render();
+  }
+
+  // ====== Auto Fall ======
+  function startAutoFall() {
+    if (g.state === "waiting") {
+      g.state = "explore";
+      fallingActive = true;
+      logln("落下開始。より深く、より暗く。");
+    }
+    stopAutoFall();
+    autoFallTimer = setInterval(() => {
+      if (g.state === "explore" || g.state === "battle") {
+        actFall();
+      }
+    }, AUTO_FALL_INTERVAL);
+  }
+
+  function stopAutoFall() {
+    if (autoFallTimer) {
+      clearInterval(autoFallTimer);
+      autoFallTimer = null;
+    }
+  }
+
+  // ====== Actions ======
+  function actFall() {
+    if (g.state === "dead") return;
+
+    if (!spendTurn(HUNGER_DEC_FALL)) return;
+
+    g.depth += FALL_DISTANCE;
+
+    if (chance(EQUIPMENT_LOOT_RATE)) {
+      const loot = equipmentLootRoll(g.depth);
+      g.pendingLoot = loot;
+
+      if (g.inv.length < g.invCap) {
+        addToInv(loot);
+        g.pendingLoot = null;
+      } else {
+        logln(`持ち物がいっぱいだ：${itemLabel(loot)}`);
+        logln("下の持ち物から捨てる/入れ替える。");
+      }
+    }
+
+    if (g.state !== "battle" && chance(ENCOUNTER_RATE)) {
+      g.enemy = makeEnemy(g.depth);
+      g.state = "battle";
+      showEnemy(g.enemy);
+      logln(`敵が現れた：${g.enemy.name}（HP ${g.enemy.hp}）`);
+    }
+
+    render();
+    setButtons();
+  }
+
+  function actRun() {
+    if (g.state !== "battle" || !g.enemy) return;
+
+    const p = clamp(RUN_BASE + (g.lv * 0.02) - (g.depth * RUN_PENALTY_DEPTH), 0.08, 0.85);
+
+    if (!spendTurn(1)) return;
+
+    if (chance(p)) {
+      logln("逃げ切った。");
+      g.enemy = null;
+      g.state = "explore";
+      hideEnemy();
+      g.depth += FALL_DISTANCE;
+    } else {
+      logln("逃げられない！");
+      enemyAttack();
+    }
+    render();
+    setButtons();
+  }
+
+  function actRestart() {
+    freshGame();
+  }
+
+  function playerAttack() {
+    if (g.state !== "battle" || !g.enemy) return;
+
+    if (!spendTurn(1)) return;
+
+    const dmg = dealDamage(playerAtk(), g.enemy.def);
+    g.enemy.hp -= dmg;
+    damageEnemy();
+    logln(`攻撃！ ${g.enemy.name} に ${dmg} ダメージ。`);
+
+    if (g.enemy.hp <= 0) {
+      winBattle();
+      return;
+    }
+
+    enemyAttack();
+    render();
+    setButtons();
+  }
+
+  function enemyAttack() {
+    if (!g.enemy) return;
+    const dmg = dealDamage(g.enemy.atk, playerDef());
+    g.hp -= dmg;
+    logln(`${g.enemy.name} の攻撃！ ${dmg} ダメージ。`);
+    if (g.hp <= 0) {
+      g.hp = 0;
+      die(`${g.enemy.name} に倒された。`);
+    }
+  }
+
+  function winBattle() {
+    const e = g.enemy;
+    g.enemy = null;
+    hideEnemy();
+
+    if (e.isBoss) {
+      stopAutoFall();
+      g.state = "clear";  // ここでクリア状態に設定
+      logln(`${e.name} を倒した！世界に光が戻った…`);
+      logln(`おめでとう！深さ ${g.depth} m でクリア！`);
+      if (g.depth > g.best) {
+        g.best = g.depth;
+        saveBest(g.best);
+        logln(`新記録！ ベスト更新：${g.best} m`);
+      }
+      render();
+      setButtons();
+      return;
+    }
+
+    g.state = "explore";
+
+    const xp = 4 + e.tier * 3 + rint(0, 3);
+    logln(`${e.name} を倒した。EXP +${xp}`);
+    gainXP(xp);
+
+    if (chance(BATTLE_LOOT_RATE)) {
+      const loot = consumableLootRoll(g.depth);
+      g.pendingLoot = loot;
+
+      if (g.inv.length < g.invCap) {
+        addToInv(loot);
+        g.pendingLoot = null;
+      } else {
+        logln(`持ち物がいっぱいだ：${itemLabel(loot)}`);
+        logln("下の持ち物から捨てる/入れ替える。");
+      }
+    }
+
+    render();
+    setButtons();
+  }
+
+  // ====== Inventory interactions ======
+  function equipItem(idx) {
+    const it = g.inv[idx];
+    if (!it) return;
+    if (it.kind === "weapon") {
+      const old = g.weapon;
+      g.weapon = { name: it.name, atk: it.atk };
+      g.inv.splice(idx, 1);
+      logln(`武器を装備：${it.name}（ATK+${it.atk}）`);
+      if (old.name !== "素手") {
+        g.inv.push({ kind:"weapon", name: old.name, atk: old.atk });
+        logln(`外した武器を持ち物へ：${old.name}`);
+      }
+    } else if (it.kind === "armor") {
+      const old = g.armor;
+      g.armor = { name: it.name, def: it.def };
+      g.inv.splice(idx, 1);
+      logln(`防具を装備：${it.name}（DEF+${it.def}）`);
+      if (old.name !== "布") {
+        g.inv.push({ kind:"armor", name: old.name, def: old.def });
+        logln(`外した防具を持ち物へ：${old.name}`);
+      }
+    } else if (it.kind === "food") {
+      g.inv.splice(idx, 1);
+      const prevHunger = g.hunger;
+      g.hunger = Math.min(g.hunger + it.hunger, g.hungerMax);
+      const recoveredHunger = g.hunger - prevHunger;
+      logln(`${it.name}を食べた。満腹度 +${Math.floor(recoveredHunger)}。`);
+      if (g.state === "battle" && g.enemy) {
+        enemyAttack();
+      }
+    } else if (it.kind === "potion") {
+      g.inv.splice(idx, 1);
+      const prevHP = g.hp;
+      const prevHunger = g.hunger;
+      g.hp = Math.min(g.hp + it.heal, g.hpMax);
+      g.hunger = Math.min(g.hunger + it.hunger, g.hungerMax);
+      const recoveredHP = g.hp - prevHP;
+      const recoveredHunger = g.hunger - prevHunger;
+      logln(`${it.name}を使った。HP +${recoveredHP}、満腹度 +${Math.floor(recoveredHunger)}。`);
+      if (g.state === "battle" && g.enemy) {
+        enemyAttack();
+      }
+    }
+
+    render();
+    setButtons();
+  }
+
+  function dropItem(idx) {
+    const it = g.inv[idx];
+    if (!it) return;
+    g.inv.splice(idx, 1);
+    
+    const hpRecover = rint(5, 8);
+    const hungerRecover = rint(5, 8);
+    g.hp = Math.min(g.hp + hpRecover, g.hpMax);
+    g.hunger = Math.min(g.hunger + hungerRecover, g.hungerMax);
+    
+    logln(`捨てた：${itemLabel(it)}（HP +${hpRecover}、満腹度 +${hungerRecover}）`);
+
+    if (g.pendingLoot && g.inv.length < g.invCap) {
+      addToInv(g.pendingLoot);
+      g.pendingLoot = null;
+    }
+
+    if (g.state === "battle" && g.enemy) {
+      enemyAttack();
+    }
+
+    render();
+    setButtons();
+  }
+
+  function takePendingLootReplacing(idxToDrop) {
+    if (!g.pendingLoot) return;
+    dropItem(idxToDrop);
+  }
+
+  // ====== UI ======
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    depth: $("depth"),
+    bestTop: $("bestTop"),
+    state: $("state"),
+    lv: $("lv"),
+    xp: $("xp"),
+    xpneed: $("xpneed"),
+    hp: $("hp"),
+    hpmax: $("hpmax"),
+    hpBar: $("hpBar"),
+    hung: $("hung"),
+    hungerBar: $("hungerBar"),
+    wep: $("wep"),
+    wepAtk: $("wepAtk"),
+    arm: $("arm"),
+    armDef: $("armDef"),
+    inv: $("inv"),
+    log: $("log"),
+    btnStart: $("btnStart"),
+    btnAttack: $("btnAttack"),
+    btnRun: $("btnRun"),
+    btnRestart: $("btnRestart"),
+  };
+
+  function render() {
+    el.depth.textContent = g.depth;
+    el.bestTop.textContent = Math.max(g.best, g.depth);
+    el.lv.textContent = g.lv;
+    el.xp.textContent = g.xp;
+    el.xpneed.textContent = g.xpNeed;
+    
+    el.hp.textContent = g.hp;
+    el.hpmax.textContent = g.hpMax;
+    const hpPercent = (g.hp / g.hpMax) * 100;
+    el.hpBar.style.width = hpPercent + "%";
+    
+    el.hung.textContent = Math.floor(g.hunger);
+    const hungerPercent = (g.hunger / g.hungerMax) * 100;
+    el.hungerBar.style.width = hungerPercent + "%";
+    
+    el.wep.textContent = g.weapon.name;
+    el.wepAtk.textContent = g.weapon.atk;
+    el.arm.textContent = g.armor.name;
+    el.armDef.textContent = g.armor.def;
+
+    if (g.state === "battle" && g.enemy) {
+      el.state.textContent = `戦闘中`;
+      // Update enemy name label in sprite
+      const nameLabel = document.querySelector('.enemy-name');
+      if (nameLabel) {
+        nameLabel.textContent = `${g.enemy.name} (HP ${g.enemy.hp}/${g.enemy.hpMax})`;
+      }
+    } else if (g.state === "dead") {
+      el.state.textContent = "死亡";
+    } else if (g.state === "waiting") {
+      el.state.textContent = "待機中";
+    } else {
+      el.state.textContent = "落下中";
+    }
+
+    renderInv();
+  }
+
+  function renderInv() {
+    el.inv.innerHTML = "";
+    if (g.inv.length === 0) {
+      const d = document.createElement("div");
+      d.className = "small";
+      d.textContent = "（持ち物なし）";
+      el.inv.appendChild(d);
+      return;
+    }
+
+g.inv.forEach((it, idx) => {
+  const row = document.createElement("div");
+  row.className = "item";
+
+  const left = document.createElement("div");
+  const colorClass =
+    it.kind === "food" ? "item-food" :
+    it.kind === "potion" ? "item-potion" :
+    it.kind === "weapon" ? "item-weapon" :
+    it.kind === "armor" ? "item-armor" : "";
+
+  left.innerHTML = `
+  <b class="${colorClass}">${it.name}</b>
+  <span class="small"> ${badge(it)}</span>
+`;
+
+  const right = document.createElement("div");
+  right.className = "item-buttons";
+
+  const bUse = document.createElement("button");
+  bUse.textContent = useLabel(it);
+  bUse.onpointerdown = () => equipItem(idx);
+
+  const bDrop = document.createElement("button");
+  bDrop.textContent = (g.pendingLoot ? "拾う" : "捨てる");
+  bDrop.onpointerdown = () => {
+    if (g.pendingLoot) takePendingLootReplacing(idx);
+    else dropItem(idx);
+  };
+
+  right.appendChild(bUse);
+  right.appendChild(bDrop);
+
+  row.appendChild(left);
+  row.appendChild(right);
+  el.inv.appendChild(row);
+});
+
+  }
+
+  function badge(it) {
+    if (it.kind === "weapon") return `武器 ATK+${it.atk}`;
+    if (it.kind === "armor") return `防具 DEF+${it.def}`;
+    if (it.kind === "potion") return `薬 HP+${it.heal} 満腹+${it.hunger}`;
+    return `食料 満腹+${it.hunger}`;
+  }
+  function useLabel(it) {
+    if (it.kind === "weapon") return "装備";
+    if (it.kind === "armor") return "装備";
+    if (it.kind === "potion") return "使う";
+    return "食べる";
+  }
+
+  function setButtons() {
+    const inBattle = (g.state === "battle");
+    const dead = (g.state === "dead");
+    const cleared = (g.state === "clear");
+    const waiting = (g.state === "waiting");
+
+    el.btnStart.disabled = !waiting || dead || cleared;
+    el.btnAttack.disabled = dead || cleared || !inBattle;
+    el.btnRun.disabled = dead || cleared || !inBattle;
+  }
+
+  function logln(s) {
+    const now = new Date();
+    const t = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+    el.log.textContent = `[${t}] ${s}\n` + el.log.textContent;
+  }
+
+// el.log.addEventListener("click", () => {
+//   if (g.state === "battle" && g.enemy && g.state !== "dead") playerAttack();
+// });
+
+
+  el.btnStart.onclick = startAutoFall;
+  el.btnAttack.onclick = playerAttack;
+  el.btnRun.onclick = actRun;
+  el.btnRestart.onclick = actRestart;
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " " || e.key === "Enter") {
+      if (g.state === "battle") playerAttack();
+      else if (g.state === "waiting") startAutoFall();
+    }
+    if (e.key.toLowerCase() === "x") actRun();
+  });
+
+  window.addEventListener("resize", () => {
+    initCanvas();
+  });
+
+  freshGame();
+  updateBackground();
+})();
+</script>
+</body>
+</html>
