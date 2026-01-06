@@ -43,14 +43,25 @@
       align-items: center;
       justify-content: center;
       z-index: 10;
-      gap: 8px;
-    }
+      gap: 8px;    }
     .enemy-sprite img {
       max-width: 120px;
       max-height: 120px;
       object-fit: contain;
       filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.8));
     }
+
+/* ラスボス専用 */
+.enemy-sprite.boss img {
+  max-width: 200px;
+  max-height: 200px;
+}
+
+.enemy-sprite.boss .enemy-name {
+  font-size: 18px;
+  padding: 6px 16px;
+}
+
     .enemy-name {
       background: rgba(0, 0, 0, 0.7);
       color: #fff;
@@ -408,10 +419,10 @@ updateBackground();
     if (depth >= 15000) {
       return {
         name: "深淵の主",
-        hp: 200,
-        hpMax: 200,
-        atk: 30,
-        def: 15,
+        hp: 300,
+        hpMax: 300,
+        atk: 31,
+        def: 16,
         tier: 99,
         isBoss: true
       };
@@ -436,6 +447,12 @@ updateBackground();
   function showEnemy(enemy) {
     const sprite = document.getElementById('enemySprite');
     sprite.innerHTML = '';
+
+sprite.classList.remove("boss");
+if (enemy.isBoss) {
+  sprite.classList.add("boss");
+}
+
     
     const imgUrl = ENEMY_IMAGES[enemy.name];
     if (imgUrl) {
