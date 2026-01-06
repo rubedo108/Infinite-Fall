@@ -26,6 +26,25 @@
       border-radius: 10px 10px 0 0; 
       overflow: hidden;
     }
+#fadeLayer {
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 2.5s ease;
+  z-index: 20;
+}
+
+.fade-white {
+  opacity: 1;
+}
+
+.fade-black {
+  background: black;
+  opacity: 1;
+}
+
     .game-screen canvas {
       position: absolute;
       top: 0;
@@ -181,7 +200,7 @@ touch-action: manipulation;
   
   <div class="panel">
     <div class="info-text">
-      🎮 自動で2mずつ落下 | 💀 満腹度がゼロで死亡 | ⚔️ 戦闘中のアイテム使用は敵の攻撃を受ける
+      🎮 自動で2mずつ落下 | 💀 満腹度がゼロで死亡 | ⚔️ 戦闘中のアイテム使用は敵の攻撃を受ける。ただし装備は攻撃を受けない
     </div>
   </div>
 
@@ -189,6 +208,7 @@ touch-action: manipulation;
     <div class="game-screen-container">
       <div class="game-screen">
         <canvas id="bgCanvas"></canvas>
+ <div id="fadeLayer"></div>
         <div id="enemySprite" class="enemy-sprite" style="display:none;"></div>
       </div>
       <div class="game-controls">
@@ -245,9 +265,8 @@ touch-action: manipulation;
   </div>
 
   <div class="panel">
-    <div class="inv-header">Inventory</div>
+    <div class="inv-header">Inventory　最大6個まで。アイテムを捨てるとHP・満腹度が少し回復。</div>
     <div id="inv" class="inv"></div>
-    <div class="inv-caption">※ 最大6個まで。アイテムを捨てるとHP・満腹度が少し回復。</div>
   </div>
 
   <div class="panel">
@@ -371,6 +390,14 @@ function makeParticle() {
 function updateBackground() {
   if (!canvasInitialized) initCanvas();
 
+  // ★ ④ クリア時の白フェード（一番最初）
+  if (g.state === "clear") {
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    requestAnimationFrame(updateBackground);
+    return; // ← 下の通常描画をしない
+  }
+
   // 背景（薄く塗りつぶし）
   ctx.fillStyle = "rgba(10,18,32,0.35)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -401,6 +428,21 @@ window.addEventListener("resize", () => {
 // 起動
 updateBackground();
 
+function playEndingFade() {
+  const fade = document.getElementById("fadeLayer");
+
+  // 白くなる
+  fade.className = "";
+  fade.style.background = "white";
+  fade.classList.add("fade-white");
+
+  // 白 → 黒
+  setTimeout(() => {
+    fade.className = "";
+    fade.style.background = "black";
+    fade.classList.add("fade-black");
+  }, 2500);
+}
 
 
 
@@ -419,8 +461,8 @@ updateBackground();
     if (depth >= 15000) {
       return {
         name: "深淵の主",
-        hp: 300,
-        hpMax: 300,
+        hp: 200,
+        hpMax: 200,
         atk: 31,
         def: 16,
         tier: 99,
@@ -754,19 +796,30 @@ if (enemy.isBoss) {
     hideEnemy();
 
     if (e.isBoss) {
-      stopAutoFall();
-      g.state = "clear";  // ここでクリア状態に設定
-      logln(`${e.name} を倒した！世界に光が戻った…`);
-      logln(`おめでとう！深さ ${g.depth} m でクリア！`);
-      if (g.depth > g.best) {
-        g.best = g.depth;
-        saveBest(g.best);
-        logln(`新記録！ ベスト更新：${g.best} m`);
-      }
-      render();
-      setButtons();
-      return;
-    }
+  stopAutoFall();
+  fallingActive = false;
+  g.state = "clear";  // クリア状態に設定
+playEndingFade();
+
+
+  // ★⑤ エンディング演出ログ
+  logln("");
+  logln("── 落下は終わった ──");
+
+  // 既存の勝利ログ
+  logln(`${e.name} を倒した！世界に光が戻った…`);
+  logln(`おめでとう！深さ ${g.depth} m でクリア！`);
+
+  if (g.depth > g.best) {
+    g.best = g.depth;
+    saveBest(g.best);
+    logln(`新記録！ ベスト更新：${g.best} m`);
+  }
+
+  render();
+  setButtons();
+  return;
+}
 
     g.state = "explore";
 
@@ -924,6 +977,8 @@ if (enemy.isBoss) {
       if (nameLabel) {
         nameLabel.textContent = `${g.enemy.name} (HP ${g.enemy.hp}/${g.enemy.hpMax})`;
       }
+} else if (g.state === "clear") {
+  el.state.textContent = "クリア";
     } else if (g.state === "dead") {
       el.state.textContent = "死亡";
     } else if (g.state === "waiting") {
@@ -967,6 +1022,7 @@ g.inv.forEach((it, idx) => {
   const bUse = document.createElement("button");
   bUse.textContent = useLabel(it);
   bUse.onpointerdown = () => equipItem(idx);
+bUse.disabled = (g.state === "clear");
 
   const bDrop = document.createElement("button");
   bDrop.textContent = (g.pendingLoot ? "拾う" : "捨てる");
@@ -974,6 +1030,7 @@ g.inv.forEach((it, idx) => {
     if (g.pendingLoot) takePendingLootReplacing(idx);
     else dropItem(idx);
   };
+bDrop.disabled = (g.state === "clear"); 
 
   right.appendChild(bUse);
   right.appendChild(bDrop);
