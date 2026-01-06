@@ -37,6 +37,7 @@
 }
 
 .fade-white {
+ background: white;
   opacity: 1;
 }
 
@@ -437,11 +438,10 @@ function playEndingFade() {
   fade.classList.add("fade-white");
 
   // 白 → 黒
-  setTimeout(() => {
-    fade.className = "";
-    fade.style.background = "black";
+ setTimeout(() => {
+    fade.classList.remove("fade-white");
     fade.classList.add("fade-black");
-  }, 2500);
+  }, 2000); // ← 白の表示時間（ms）
 }
 
 
@@ -809,6 +809,8 @@ playEndingFade();
   // 既存の勝利ログ
   logln(`${e.name} を倒した！世界に光が戻った…`);
   logln(`おめでとう！深さ ${g.depth} m でクリア！`);
+
+playEndingFade(); 
 
   if (g.depth > g.best) {
     g.best = g.depth;
