@@ -35,6 +35,9 @@
   transition: opacity 2.5s ease;
   z-index: 20;
 }
+    .fade-ending {
+  animation: ending-fade 4.5s ease forwards;
+}
 
 .fade-white {
  background: white;
@@ -44,6 +47,12 @@
 .fade-black {
   background: black;
   opacity: 1;
+}
+    @keyframes ending-fade {
+  0% { opacity: 0; background: white; }
+  55% { opacity: 1; background: white; }
+  56% { opacity: 1; background: black; }
+  100% { opacity: 1; background: black; }
 }
 
     .game-screen canvas {
@@ -432,21 +441,10 @@ updateBackground();
 function playEndingFade() {
   const fade = document.getElementById("fadeLayer");
 
-  // 白くなる
-  fade.className = "";
-  fade.style.background = "white";
-  fade.classList.add("fade-white");
-
-  // 白 → 黒
- setTimeout(() => {
-    fade.classList.remove("fade-white");
-    fade.classList.add("fade-black");
-  }, 2000); // ← 白の表示時間（ms）
+ fade.classList.remove("fade-ending");
+  void fade.offsetWidth;
+  fade.classList.add("fade-ending");
 }
-
-
-
-
 
   // ====== Combat / Scaling ======
   function depthTier(depth) {
