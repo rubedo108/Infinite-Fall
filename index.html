@@ -197,6 +197,35 @@
       min-width: 50px;
 touch-action: manipulation;
     }
+
+.ending-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  color: #f5f5f5;                 /* やや柔らかい白 */
+  font-size: 18px;
+  line-height: 1.6;
+  text-align: center;
+
+  background: rgba(0, 0, 0, 0.35); /* ←これが命綱 */
+  text-shadow:
+    0 0 6px rgba(0,0,0,0.8),
+    0 0 12px rgba(0,0,0,0.6);
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 2s ease;
+}
+
+
+.ending-message.show {
+  opacity: 1;
+}
+
     .item-food { color: #ff8800; }
     .item-potion { color: #22aa22; }
     .item-weapon { color: #ff4444; }
@@ -218,9 +247,18 @@ touch-action: manipulation;
     <div class="game-screen-container">
       <div class="game-screen">
         <canvas id="bgCanvas"></canvas>
+
+  <!-- エンディングメッセージ -->
+  <div id="endingMessage" class="ending-message">
+    <p>おめでとうございます。</p>
+    <p>これで、あなたが深淵の主です…。</p>
+  </div>
+
  <div id="fadeLayer"></div>
+
         <div id="enemySprite" class="enemy-sprite" style="display:none;"></div>
       </div>
+
       <div class="game-controls">
         <button id="btnStart">スタート</button>
         <button id="btnAttack">攻撃する</button>
@@ -798,6 +836,8 @@ if (enemy.isBoss) {
   fallingActive = false;
   g.state = "clear";  // クリア状態に設定
 playEndingFade();
+const msg = document.getElementById("endingMessage");
+if (msg) msg.classList.add("show");
 
 
   // ★⑤ エンディング演出ログ
