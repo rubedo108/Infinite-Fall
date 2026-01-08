@@ -32,7 +32,7 @@
   background: white;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 2.5s ease;
+  transition: opacity 5s ease;
   z-index: 20;
 }
     .fade-ending {
@@ -50,8 +50,8 @@
 }
     @keyframes ending-fade {
   0% { opacity: 0; background: white; }
-  55% { opacity: 1; background: white; }
-  56% { opacity: 1; background: black; }
+  60% { opacity: 1; background: white; }
+  70% { opacity: 1; background: black; }
   100% { opacity: 1; background: black; }
 }
 
@@ -205,6 +205,7 @@ touch-action: manipulation;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+ z-index: 30; 
 
   color: #f5f5f5;                 /* やや柔らかい白 */
   font-size: 18px;
@@ -218,7 +219,7 @@ touch-action: manipulation;
 
   opacity: 0;
   pointer-events: none;
-  transition: opacity 2s ease;
+  transition: opacity 5s ease;
 }
 
 
@@ -250,8 +251,9 @@ touch-action: manipulation;
 
   <!-- エンディングメッセージ -->
   <div id="endingMessage" class="ending-message">
-    <p>おめでとうございます。</p>
-    <p>これで、あなたが深淵の主です…。</p>
+    <p>ようこそ。</p>
+    <p>深淵は、あなたを</p>
+<p>新たな主として受け入れました…。</p>
   </div>
 
  <div id="fadeLayer"></div>
@@ -847,8 +849,6 @@ if (msg) msg.classList.add("show");
   // 既存の勝利ログ
   logln(`${e.name} を倒した！世界に光が戻った…`);
   logln(`おめでとう！深さ ${g.depth} m でクリア！`);
-
-playEndingFade(); 
 
   if (g.depth > g.best) {
     g.best = g.depth;
