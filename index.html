@@ -839,7 +839,12 @@ if (enemy.isBoss) {
   g.state = "clear";  // クリア状態に設定
 playEndingFade();
 const msg = document.getElementById("endingMessage");
-if (msg) msg.classList.add("show");
+if (msg) {
+  msg.classList.remove("show"); // 念のため
+  setTimeout(() => {
+    msg.classList.add("show");
+  }, 4000); // ← ここが Wait（ms）
+}
 
 
   // ★⑤ エンディング演出ログ
