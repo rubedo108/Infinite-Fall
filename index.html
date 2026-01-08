@@ -219,12 +219,19 @@ touch-action: manipulation;
 
   opacity: 0;
   pointer-events: none;
-  transition: opacity 5s ease;
-}
+  transform: translateY(12px);
+  letter-spacing: 0.08em;
 
+  transition:
+    opacity 5s ease,
+    transform 5s ease,
+    letter-spacing 5s ease;
+}
 
 .ending-message.show {
   opacity: 1;
+  transform: translateY(0);
+  letter-spacing: 0.02em;
 }
 
     .item-food { color: #ff8800; }
